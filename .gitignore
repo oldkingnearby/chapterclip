@@ -50,6 +50,7 @@ app.*.map.json
 *.keystore
 key.properties
 local.properties
+scripts-private/
 
 # Private planning notes
 ChapterClip *.md

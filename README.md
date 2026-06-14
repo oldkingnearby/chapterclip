@@ -1,5 +1,7 @@
 # ChapterClip
 
+[中文说明](README.zh-CN.md)
+
 ChapterClip is an Android Flutter app for importing EPUB books, splitting chapters into copy-friendly chunks, tracking reading progress, and copying selected text with minimal friction.
 
 The project is currently Android-only. HarmonyOS, iOS, Windows, web, and desktop platform targets are intentionally not included.
