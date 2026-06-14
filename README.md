@@ -2,9 +2,14 @@
 
 [中文说明](README.zh-CN.md)
 
-ChapterClip is an Android Flutter app for importing EPUB books, splitting chapters into copy-friendly chunks, tracking reading progress, and copying selected text with minimal friction.
+ChapterClip is an EPUB clipping app for importing books, splitting chapters into copy-friendly chunks, tracking reading progress, and copying selected text with minimal friction.
 
-The project is currently Android-only. HarmonyOS, iOS, Windows, web, and desktop platform targets are intentionally not included.
+The repository contains:
+
+- `android/` and `lib/`: the Android Flutter app.
+- `web-pwa/`: a pure web PWA implementation built with Svelte.
+
+HarmonyOS, iOS, Windows, and desktop platform targets are intentionally not included.
 
 ## Features
 
@@ -17,6 +22,7 @@ The project is currently Android-only. HarmonyOS, iOS, Windows, web, and desktop
 - Copy chunk text and basic metadata.
 - Store imported books locally with Drift and SQLite.
 - Optional in-app APK update checks through a plain `update.json` manifest.
+- Pure web PWA version for browser-based EPUB importing, chunking, progress tracking, and copying.
 
 ## Tech Stack
 
@@ -77,6 +83,24 @@ The default release APK is written to:
 build/app/outputs/flutter-apk/app-release.apk
 ```
 
+## Web PWA
+
+The pure web version lives in `web-pwa/`.
+
+```powershell
+cd web-pwa
+npm install
+npm run dev
+```
+
+Build static PWA assets:
+
+```powershell
+npm run build
+```
+
+The output is written to `web-pwa/dist/` and can be deployed to any static hosting service.
+
 ## Optional Update Manifest
 
 ChapterClip can check for a newer APK at startup, but update checks are disabled by default in the public source tree.
@@ -119,6 +143,7 @@ The importer keeps the original source file name when available and stores all p
 
 ```text
 android/                         Android host project
+web-pwa/                         Pure web PWA implementation
 assets/                          App assets
 lib/app.dart                     App root and theme
 lib/data/database/               Drift schema, DAO, generated database code
