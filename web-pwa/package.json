@@ -12,6 +12,7 @@
     "node": "^20.19 || ^22.12 || >=24"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.18.0",
     "dexie": "^4.2.1",
     "fflate": "^0.8.2",
     "vite-plugin-pwa": "^1.1.0"

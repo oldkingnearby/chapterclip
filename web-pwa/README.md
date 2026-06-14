@@ -14,7 +14,7 @@ ChapterClip Web is mostly local state, file parsing, IndexedDB persistence, and 
 - Store books and reading progress in IndexedDB through Dexie.
 - Copy the current chunk with the Clipboard API.
 - Export and import JSON backups.
-- Installable PWA with generated service worker assets.
+- Installable, mobile-first PWA with generated service worker assets and app icons.
 
 ## Commands
 
@@ -30,5 +30,14 @@ The production build is emitted to `dist/`.
 ## Deployment
 
 Deploy the contents of `dist/` to any static host. The app is self-contained and stores imported books in the user's browser.
+
+The current Cloudflare Pages project is `chapterclip`:
+
+```powershell
+npm run build
+npx wrangler pages deploy dist --project-name chapterclip --branch main --commit-dirty=true
+```
+
+The Pages custom domain is `chapterclip.oldking.club`. Cloudflare still needs the DNS record for that host to point at `chapterclip.pages.dev`.
 
 Because browser storage can be cleared by the operating system or browser settings, the UI includes backup export/import controls.

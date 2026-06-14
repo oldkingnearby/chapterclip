@@ -1,5 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import {
+    ArchiveRestore,
+    ArrowLeft,
+    BookOpen,
+    CheckCircle2,
+    ChevronLeft,
+    ChevronRight,
+    Copy,
+    Download,
+    FileUp,
+    Library,
+    MoreHorizontal,
+    Trash2
+  } from '@lucide/svelte';
   import { buildChapterRecord } from './lib/chunk';
   import {
     deleteBook,
@@ -26,6 +40,7 @@
   let progress: ImportProgress | null = null;
   let notice = '';
   let busy = false;
+  let toolsOpen = false;
   let fileInput: HTMLInputElement;
   let backupInput: HTMLInputElement;
 
@@ -56,6 +71,7 @@
     if (!file) return;
 
     busy = true;
+    toolsOpen = false;
     try {
       progress = { stage: 'reading', message: 'Reading EPUB' };
       const parsed = await parseEpubFile(file);
@@ -112,18 +128,21 @@
       return;
     }
     selectedBook = book;
-    activeChunkIndex = Math.max(0, chunks.findIndex((chunk) => !chunk.read));
+    activeChunkIndex = Math.max(0, getAllChunks(book).findIndex((chunk) => !chunk.read));
     if (activeChunkIndex < 0) activeChunkIndex = 0;
+    toolsOpen = false;
   }
 
   function closeBook() {
     selectedBook = null;
     activeChunkIndex = 0;
+    toolsOpen = false;
   }
 
   function openChunk(chunk: ChunkRecord) {
     const index = chunks.findIndex((item) => item.id === chunk.id);
     if (index >= 0) activeChunkIndex = index;
+    toolsOpen = false;
   }
 
   async function removeBook(book: BookSummary) {
@@ -139,6 +158,7 @@
     activeChunk.read = read;
     await saveBook(selectedBook);
     await refreshBooks();
+    showNotice(read ? 'Marked read' : 'Marked unread');
   }
 
   async function copyActiveChunk() {
@@ -168,6 +188,7 @@
       .slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
+    toolsOpen = false;
   }
 
   async function handleBackupSelected(event: Event) {
@@ -186,6 +207,7 @@
       if (!booksToImport.length) throw new Error('Backup is empty');
       await importLibraryBackup(booksToImport);
       await refreshBooks();
+      toolsOpen = false;
       showNotice('Backup imported');
     } catch (error) {
       showNotice(error instanceof Error ? error.message : 'Import failed');
@@ -234,9 +256,7 @@
   function formatDate(value: string) {
     return new Intl.DateTimeFormat(undefined, {
       month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric'
     }).format(new Date(value));
   }
 
@@ -248,133 +268,188 @@
   }
 </script>
 
-<main class:reading={Boolean(selectedBook && activeChunk)}>
-  <header class="app-header">
-    {#if selectedBook}
-      <button class="icon-button" aria-label="Back to library" on:click={closeBook}>
-        <span aria-hidden="true">‹</span>
-      </button>
-    {:else}
-      <div class="brand-mark" aria-hidden="true">C</div>
-    {/if}
-    <div>
-      <h1>{selectedBook ? selectedBook.title : 'ChapterClip'}</h1>
-      {#if selectedBook && selectedProgress}
-        <p>{selectedProgress.read}/{selectedProgress.total} chunks · {selectedProgress.percent}%</p>
+<main>
+  <section class="phone-shell" aria-label="ChapterClip">
+    <header class="top-bar">
+      {#if selectedBook}
+        <button class="icon-button" aria-label="Back to library" on:click={closeBook}>
+          <ArrowLeft size={22} strokeWidth={2.4} />
+        </button>
       {:else}
-        <p>Android EPUB chunks in your browser</p>
+        <img class="app-icon" src="/icon-192.png" alt="" />
       {/if}
-    </div>
-    <button class="primary-action" disabled={busy} on:click={chooseEpub}>
-      Import EPUB
-    </button>
-  </header>
 
-  <input
-    bind:this={fileInput}
-    class="hidden"
-    type="file"
-    accept=".epub,application/epub+zip"
-    on:change={handleEpubSelected}
-  />
-  <input
-    bind:this={backupInput}
-    class="hidden"
-    type="file"
-    accept="application/json,.json"
-    on:change={handleBackupSelected}
-  />
-
-  {#if progress}
-    <div class="progress-strip">
-      <div>{progress.message}</div>
-      <div class="progress-bar"><span></span></div>
-    </div>
-  {/if}
-
-  {#if !selectedBook}
-    <section class="library-toolbar">
-      <label>
-        Chunk size
-        <input
-          type="number"
-          min="200"
-          step="100"
-          bind:value={chunkTargetChars}
-        />
-      </label>
-      <div class="toolbar-actions">
-        <button on:click={chooseBackup}>Import backup</button>
-        <button on:click={exportBackup} disabled={!books.length}>Export backup</button>
+      <div class="title-block">
+        <h1>{selectedBook ? selectedBook.title : 'ChapterClip'}</h1>
+        {#if selectedBook && selectedProgress}
+          <p>{selectedProgress.read}/{selectedProgress.total} chunks, {selectedProgress.percent}%</p>
+        {:else}
+          <p>{books.length ? `${books.length} books saved offline` : 'EPUB chunks, ready to copy'}</p>
+        {/if}
       </div>
-    </section>
 
-    {#if books.length}
-      <section class="book-grid" aria-label="Library">
-        {#each books as book}
-          <article class="book-card">
-            <button class="book-main" on:click={() => openBook(book.id)}>
-              <span class="book-title">{book.title}</span>
-              <span class="book-author">{book.author || book.sourceFileName}</span>
-              <span class="book-meta">
-                {book.totalChunkCount} chunks · {summaryPercent(book)}% · {formatDate(book.importedAt)}
-              </span>
-              <span class="meter"><span style={`width: ${summaryPercent(book)}%`}></span></span>
-            </button>
-            <button class="danger" on:click={() => removeBook(book)}>Delete</button>
-          </article>
-        {/each}
-      </section>
-    {:else}
-      <section class="empty-state">
-        <div class="empty-icon" aria-hidden="true">▰</div>
-        <h2>No books imported</h2>
-        <button class="primary-action" on:click={chooseEpub}>Import EPUB</button>
-      </section>
+      <button
+        class="icon-button"
+        aria-label={selectedBook ? 'Show chunks' : 'Library tools'}
+        on:click={() => (toolsOpen = !toolsOpen)}
+      >
+        <MoreHorizontal size={22} strokeWidth={2.4} />
+      </button>
+    </header>
+
+    <input
+      bind:this={fileInput}
+      class="hidden"
+      type="file"
+      accept=".epub,application/epub+zip"
+      on:change={handleEpubSelected}
+    />
+    <input
+      bind:this={backupInput}
+      class="hidden"
+      type="file"
+      accept="application/json,.json"
+      on:change={handleBackupSelected}
+    />
+
+    {#if progress}
+      <div class="progress-strip" role="status">
+        <span>{progress.message}</span>
+        <div class="progress-bar"><span></span></div>
+      </div>
     {/if}
-  {:else if activeChunk}
-    <section class="reader-shell">
-      <aside class="chapter-list" aria-label="Chapters">
-        {#each selectedBook.chapters as chapter}
-          <details open>
-            <summary>{chapter.title}</summary>
-            {#each chapter.chunks as chunk}
-              <button
-                class:active={chunk.id === activeChunk.id}
-                class:done={chunk.read}
-                on:click={() => openChunk(chunk)}
-              >
-                <span>{chunk.title}</span>
-                <small>{chunk.charCount} chars</small>
-              </button>
-            {/each}
-          </details>
-        {/each}
-      </aside>
 
-      <article class="reader">
-        <div class="reader-top">
-          <div>
-            <h2>{activeChunk.title}</h2>
-            <p>{activeChunkIndex + 1}/{chunks.length} · {activeChunk.charCount} chars</p>
+    {#if !selectedBook}
+      <section class="screen library-screen" aria-label="Library">
+        {#if books.length}
+          <div class="book-list">
+            {#each books as book}
+              <article class="book-row">
+                <button class="book-main" on:click={() => openBook(book.id)}>
+                  <span class="book-cover" aria-hidden="true">
+                    <BookOpen size={24} strokeWidth={2.2} />
+                  </span>
+                  <span class="book-text">
+                    <span class="book-title">{book.title}</span>
+                    <span class="book-author">{book.author || book.sourceFileName}</span>
+                    <span class="book-meta">
+                      {book.totalChunkCount} chunks, {summaryPercent(book)}%, {formatDate(book.importedAt)}
+                    </span>
+                    <span class="meter"><span style={`width: ${summaryPercent(book)}%`}></span></span>
+                  </span>
+                </button>
+                <button
+                  class="icon-button danger"
+                  aria-label={`Delete ${book.title}`}
+                  on:click={() => removeBook(book)}
+                >
+                  <Trash2 size={19} />
+                </button>
+              </article>
+            {/each}
           </div>
-          <button on:click={() => markActiveChunk(!activeChunk.read)}>
-            {activeChunk.read ? 'Mark unread' : 'Mark read'}
-          </button>
+        {:else}
+          <div class="empty-state">
+            <div class="empty-mark" aria-hidden="true">
+              <BookOpen size={58} strokeWidth={1.7} />
+            </div>
+            <h2>No books imported</h2>
+            <p>Import an EPUB and ChapterClip will keep it offline on this device.</p>
+          </div>
+        {/if}
+      </section>
+
+      {#if toolsOpen}
+        <section class="sheet" aria-label="Library tools">
+          <div class="sheet-handle"></div>
+          <label class="field">
+            <span>Chunk size</span>
+            <input
+              type="number"
+              min="200"
+              step="100"
+              bind:value={chunkTargetChars}
+            />
+          </label>
+          <div class="sheet-grid">
+            <button on:click={chooseBackup}>
+              <ArchiveRestore size={18} />
+              Import backup
+            </button>
+            <button on:click={exportBackup} disabled={!books.length}>
+              <Download size={18} />
+              Export backup
+            </button>
+          </div>
+        </section>
+      {/if}
+
+      <nav class="bottom-bar" aria-label="Library actions">
+        <button class="bottom-tab active" aria-label="Library">
+          <Library size={20} />
+          <span>Library</span>
+        </button>
+        <button class="primary-pill" disabled={busy} on:click={chooseEpub}>
+          <FileUp size={21} />
+          <span>{busy ? 'Importing' : 'Import EPUB'}</span>
+        </button>
+      </nav>
+    {:else if activeChunk}
+      <section class="screen reader-screen" aria-label="Reader">
+        <div class="reader-card">
+          <div class="reader-meta">
+            <span>Chunk {activeChunkIndex + 1}/{chunks.length}</span>
+            <button class:read={activeChunk.read} on:click={() => markActiveChunk(!activeChunk.read)}>
+              <CheckCircle2 size={18} />
+              {activeChunk.read ? 'Read' : 'Mark read'}
+            </button>
+          </div>
+          <h2>{activeChunk.title}</h2>
+          <p class="chunk-count">{activeChunk.charCount} chars</p>
+          <div class="chunk-text">{activeChunk.content}</div>
         </div>
 
-        <div class="chunk-text">{activeChunk.content}</div>
+        {#if toolsOpen}
+          <section class="chunk-sheet" aria-label="Chunks">
+            <div class="sheet-handle"></div>
+            <h3>All chunks</h3>
+            <div class="chunk-list">
+              {#each selectedBook.chapters as chapter}
+                <div class="chapter-group">
+                  <p>{chapter.title}</p>
+                  {#each chapter.chunks as chunk}
+                    <button
+                      class:active={chunk.id === activeChunk.id}
+                      class:done={chunk.read}
+                      on:click={() => openChunk(chunk)}
+                    >
+                      <span>{chunk.title}</span>
+                      <small>{chunk.charCount} chars</small>
+                    </button>
+                  {/each}
+                </div>
+              {/each}
+            </div>
+          </section>
+        {/if}
+      </section>
 
-        <nav class="reader-actions">
-          <button on:click={previousChunk} disabled={activeChunkIndex === 0}>Previous</button>
-          <button class="primary-action" on:click={copyActiveChunk}>Copy text</button>
-          <button on:click={nextChunk} disabled={activeChunkIndex >= chunks.length - 1}>Next</button>
-        </nav>
-      </article>
-    </section>
-  {/if}
+      <nav class="reader-bar" aria-label="Reader actions">
+        <button class="icon-button" aria-label="Previous chunk" on:click={previousChunk} disabled={activeChunkIndex === 0}>
+          <ChevronLeft size={23} />
+        </button>
+        <button class="copy-pill" on:click={copyActiveChunk}>
+          <Copy size={21} />
+          Copy text
+        </button>
+        <button class="icon-button" aria-label="Next chunk" on:click={nextChunk} disabled={activeChunkIndex >= chunks.length - 1}>
+          <ChevronRight size={23} />
+        </button>
+      </nav>
+    {/if}
 
-  {#if notice}
-    <div class="toast">{notice}</div>
-  {/if}
+    {#if notice}
+      <div class="toast">{notice}</div>
+    {/if}
+  </section>
 </main>
